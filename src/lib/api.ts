@@ -5,7 +5,7 @@ export const authService = {
     try {
       console.log('Intentando login con:', identifier);
       
-      const response = await fetch('http://localhost:1337/api/auth/local', {
+      const response = await fetch('https://clamaco-backend.onrender.com/api/auth/local', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -47,7 +47,7 @@ export const authService = {
         throw new Error('Token no proporcionado');
       }
       
-      const response = await fetch('http://localhost:1337/api/users/me', {
+      const response = await fetch('https://clamaco-backend.onrender.com/api/users/me', {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -100,7 +100,7 @@ export const consultasService = {
         headers['Authorization'] = `Bearer ${token}`;
       }
       
-      const response = await fetch('http://localhost:1337/api/consultas', {
+      const response = await fetch('https://clamaco-backend.onrender.com/api/consultas', {
         method: 'POST',
         headers,
         body: JSON.stringify(consultaData),
@@ -129,7 +129,7 @@ export const consultasService = {
         throw new Error('No hay token disponible');
       }
       
-      const response = await fetch('http://localhost:1337/api/consultas?populate=*', {
+      const response = await fetch('https://clamaco-backend.onrender.com/api/consultas?populate=*', {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -153,7 +153,7 @@ export const consultasService = {
         throw new Error('No hay token disponible');
       }
       
-      const response = await fetch(`http://localhost:1337/api/consultas?populate=*&filters[user][id][$eq]=${userId}`, {
+      const response = await fetch(`https://clamaco-backend.onrender.com/api/consultas?populate=*&filters[user][id][$eq]=${userId}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

@@ -39,7 +39,7 @@ export default function ObrasPage() {
       try {
         if (!user) return;
 
-        const res = await fetch(`http://localhost:1337/api/obras?filters[users][id][$eq]=${user.id}&populate=imagen_principal`, {
+        const res = await fetch(`https://clamaco-backend.onrender.com/api/obras?filters[users][id][$eq]=${user.id}&populate=imagen_principal`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('jwt')}`,
           },
@@ -59,10 +59,10 @@ export default function ObrasPage() {
 
   const getImageUrl = (obra: Obra) => {
     if (obra.imagen_principal?.url) {
-      return `http://localhost:1337${obra.imagen_principal.url}`;
+      return `https://clamaco-backend.onrender.com${obra.imagen_principal.url}`;
     }
     if (obra.imagen_principal?.data?.attributes?.url) {
-      return `http://localhost:1337${obra.imagen_principal.data.attributes.url}`;
+      return `https://clamaco-backend.onrender.com${obra.imagen_principal.data.attributes.url}`;
     }
     return null;
   };

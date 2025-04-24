@@ -12,7 +12,7 @@ const RenderGalleryModal = ({ renders, isOpen, onClose }) => {
   const getFileUrl = (file) => {
     if (!file) return null;
     const url = file.url || (file.data && file.data.attributes && file.data.attributes.url);
-    return url ? `http://localhost:1337${url}` : null;
+    return url ? `https://clamaco-backend.onrender.com${url}` : null;
   };
   
   const currentRender = renders[currentIndex];

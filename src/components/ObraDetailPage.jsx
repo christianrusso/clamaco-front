@@ -203,7 +203,7 @@ export default function ObraDetailPage() {
           throw new Error('Token no disponible');
         }
         
-        const response = await fetch(`http://localhost:1337/api/obras?populate=*&filters[users][id][$eq]=${user.id}`, {
+        const response = await fetch(`https://clamaco-backend.onrender.com/api/obras?populate=*&filters[users][id][$eq]=${user.id}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -325,10 +325,10 @@ export default function ObraDetailPage() {
   // Obtener la URL de la imagen principal
   const getImageUrl = (obra) => {
     if (obra.imagen_principal?.url) {
-      return `http://localhost:1337${obra.imagen_principal.url}`;
+      return `https://clamaco-backend.onrender.com${obra.imagen_principal.url}`;
     }
     if (obra.imagen_principal?.data?.attributes?.url) {
-      return `http://localhost:1337${obra.imagen_principal.data.attributes.url}`;
+      return `https://clamaco-backend.onrender.com${obra.imagen_principal.data.attributes.url}`;
     }
     return null;
   };
