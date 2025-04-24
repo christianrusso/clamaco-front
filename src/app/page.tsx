@@ -8,7 +8,7 @@ export default function Home() {
   
   useEffect(() => {
     // Redireccionar a Obras en lugar de login
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('jwt');
     if (token) {
       router.push('/obras');
     } else {

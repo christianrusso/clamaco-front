@@ -82,6 +82,7 @@ export default function LoginForm() {
             
             <div>
               <input
+                style={{ color: 'black' }}
                 type="text"
                 placeholder="Usuario"
                 className="w-full px-4 py-3 rounded-md bg-white border-0 focus:outline-none focus:ring-2 focus:ring-[#333333]"
@@ -95,6 +96,7 @@ export default function LoginForm() {
             
             <div>
               <input
+                style={{ color: 'black' }}
                 type="password"
                 placeholder="Contraseña"
                 className="w-full px-4 py-3 rounded-md bg-white border-0 focus:outline-none focus:ring-2 focus:ring-[#333333]"

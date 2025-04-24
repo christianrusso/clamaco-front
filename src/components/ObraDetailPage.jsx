@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/lib/auth';
-import { obrasService, departamentosService } from '@/lib/api';
+import { obrasService } from '@/lib/api';
 import { useRouter, useParams } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Sidebar from '@/components/Sidebar';
@@ -28,44 +28,150 @@ const getProperty = (obj, path, defaultValue = null) => {
   return getProperty(obj[first], rest, defaultValue);
 };
 
-// Función mejorada para obtener el archivo plano
-const getPlanoFile = (deptoData) => {
-  // Intentar diferentes caminos para obtener el plano
-  const plano = getProperty(deptoData, 'plano');
-  
-  // Si es null o undefined, probar otras posibles rutas en la estructura de datos
-  if (!plano) {
-    // Intentar otras posibles rutas donde podría estar el plano
-    return getProperty(deptoData, 'attributes.plano') || 
-           getProperty(deptoData, 'plano.data') || 
-           getProperty(deptoData, 'archivos.plano');
-  }
-  
-  return plano;
+// Mapeo de nombres de campos de la API a nombres amigables para mostrar
+const rubroMapping = {
+  demolicion: 'Demolición',
+  movimientoSuelos: 'Movimiento de suelos',
+  hormigonArmado: 'Hormigón armado',
+  albanileriaMamposteria: 'Albañilería (Mamposteria)',
+  albanileriaContrapisosCarpetas: 'Albañilería (Contrapisos y carpeta)',
+  albanileriaRevoquesExteriorInterior: 'Albañilería (Revoques exterior e interior)',
+  albanileriaTerminacion: 'Albañilería de terminación',
+  carpinteriaExterior: 'Carpintería exterior',
+  carpinteriaInterior: 'Carpintería interior',
+  electricista: 'Electricista',
+  plomeria: 'Plomería',
+  yesera: 'Yesería',
+  revestimientoExterior: 'Revestimiento exterior',
+  pintor: 'Pintura',
+  soladosRevestimientos: 'Solados y revestimientos',
+  aireAcondicionado: 'Aire acondicionado',
+  mueblesCocinaPlacard: 'Muebles de cocina y placard',
+  marmoleria: 'Marmolería',
+  cortinasEnrollar: 'Cortinas de enrollar',
+  ascensores: 'Ascensores',
+  hererria: 'Herrería',
+  porteros: 'Porteros',
+  aislacion: 'Aislación (membrana)',
+  parquizacion: 'Parquización',
+  mediasombras: 'Mediasombras',
+  ajustesPuertasTapas: 'Ajustes de puertas y tapas',
+  varios: 'Varios'
 };
 
-// Función mejorada para obtener el archivo boleto
-const getBoletoFile = (deptoData) => {
-  // Intentar diferentes caminos para obtener el boleto
-  const boleto = getProperty(deptoData, 'boleto');
+// Función para extraer rubros de cualquier estructura de datos
+function extraerRubros(obraData) {
+  const rubrosObra = [];
   
-  // Si es null o undefined, probar otras posibles rutas en la estructura de datos
-  if (!boleto) {
-    // Intentar otras posibles rutas donde podría estar el boleto
-    return getProperty(deptoData, 'attributes.boleto') || 
-           getProperty(deptoData, 'boleto.data') || 
-           getProperty(deptoData, 'archivos.boleto') ||
-           getProperty(deptoData, 'documentos.boleto');
+  // Función para buscar rubros recursivamente en un objeto
+  function buscarRubrosRecursivo(obj) {
+    if (!obj || typeof obj !== 'object') return;
+    
+    Object.keys(obj).forEach(key => {
+      const value = obj[key];
+      
+      // Si coincide con un rubro y tiene un valor numérico
+      if (rubroMapping[key] && (typeof value === 'number' || !isNaN(Number(value)) && value !== '')) {
+        const porcentaje = typeof value === 'number' ? value : Number(value);
+        console.log(`Rubro encontrado: ${key} => ${rubroMapping[key]} con porcentaje: ${porcentaje}`);
+        
+        rubrosObra.push({
+          nombre: rubroMapping[key],
+          porcentaje: porcentaje
+        });
+      }
+      
+      // Continuar buscando en propiedades anidadas
+      if (value && typeof value === 'object') {
+        buscarRubrosRecursivo(value);
+      }
+    });
   }
   
-  return boleto;
-};
+  buscarRubrosRecursivo(obraData);
+  
+  // Ordenar por porcentaje de mayor a menor
+  rubrosObra.sort((a, b) => b.porcentaje - a.porcentaje);
+  
+  return rubrosObra;
+}
+
+// Función para extraer el avance total de forma segura de cualquier estructura de datos
+function obtenerAvanceTotal(obraData) {
+  // Primero intentamos obtener directamente
+  if (typeof obraData.avanceTotal === 'number') {
+    return obraData.avanceTotal;
+  }
+  
+  // Si no está directamente, buscamos en estructuras anidadas
+  let avanceTotal = null;
+  
+  function buscarAvanceTotalRecursivo(obj) {
+    if (!obj || typeof obj !== 'object') return;
+    
+    // Si encontramos el campo avanceTotal, guardamos su valor
+    if ('avanceTotal' in obj && (typeof obj.avanceTotal === 'number' || !isNaN(Number(obj.avanceTotal)))) {
+      avanceTotal = typeof obj.avanceTotal === 'number' ? obj.avanceTotal : Number(obj.avanceTotal);
+      return;
+    }
+    
+    // Buscar en propiedades anidadas
+    Object.values(obj).forEach(value => {
+      if (value && typeof value === 'object') {
+        buscarAvanceTotalRecursivo(value);
+      }
+    });
+  }
+  
+  buscarAvanceTotalRecursivo(obraData);
+  
+  // Devolver el avance total encontrado, o 0 si no se encontró
+  return avanceTotal !== null ? avanceTotal : 0;
+}
+
+// Función para extraer los renders de la obra
+function obtenerRenders(obraData) {
+  // Intentar obtener renders directamente
+  if (obraData.renders) {
+    return obraData.renders;
+  }
+  
+  // Si es un objeto de Strapi con datos anidados
+  if (obraData.renders?.data) {
+    return obraData.renders.data;
+  }
+  
+  // Buscar en estructuras anidadas
+  let renders = null;
+  
+  function buscarRendersRecursivo(obj) {
+    if (!obj || typeof obj !== 'object') return;
+    
+    if ('renders' in obj) {
+      renders = obj.renders?.data || obj.renders;
+      return;
+    }
+    
+    Object.values(obj).forEach(value => {
+      if (value && typeof value === 'object') {
+        buscarRendersRecursivo(value);
+      }
+    });
+  }
+  
+  buscarRendersRecursivo(obraData);
+  
+  return renders || [];
+}
 
 export default function ObraDetailPage() {
-  const { cliente, user, loading } = useAuth();
+  const { user, loading } = useAuth();
   const [obra, setObra] = useState(null);
-  const [departamentos, setDepartamentos] = useState([]);
+  const [rubrosAvance, setRubrosAvance] = useState([]);
+  const [avanceTotal, setAvanceTotal] = useState(0);
+  const [renders, setRenders] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [error, setError] = useState(null);
   const params = useParams();
   const router = useRouter();
   
@@ -79,187 +185,89 @@ export default function ObraDetailPage() {
   
   useEffect(() => {
     const fetchData = async () => {
-      if (!user || !cliente || !obraDocumentId) {
+      if (!user || !obraDocumentId) {
         console.log('No se puede cargar datos, falta:',
-          !user ? 'usuario' : !cliente ? 'cliente' : !obraDocumentId ? 'obraDocumentId' : 'nada');
+          !user ? 'usuario' : !obraDocumentId ? 'obraDocumentId' : 'nada');
+        setLoadingData(false);
         return;
       }
       
       console.log('Iniciando carga de datos con:');
-      console.log('- Cliente documentId:', cliente.documentId);
+      console.log('- Usuario ID:', user.id);
       console.log('- ObraDocumentId:', obraDocumentId);
       
       try {
-        // 1. Obtenemos la obra específica usando su documentId
-        let obraEncontrada = null;
-        
-        // Intentamos obtener obras con getObrasDetalladas si está disponible
-        try {
-          if (obrasService.getObrasDetalladas) {
-            console.log('Usando método getObrasDetalladas');
-            const obrasResponse = await obrasService.getObrasDetalladas();
-            obraEncontrada = obrasResponse.data.find(
-              (o) => o.documentId === obraDocumentId
-            );
-          } else {
-            console.log('Usando método getObras estándar');
-            const obrasResponse = await obrasService.getObras();
-            obraEncontrada = obrasResponse.data.find(
-              (o) => o.documentId === obraDocumentId
-            );
-          }
-        } catch (error) {
-          console.error('Error al obtener obras:', error);
-          const obrasResponse = await obrasService.getObras();
-          obraEncontrada = obrasResponse.data.find(
-            (o) => o.documentId === obraDocumentId
-          );
+        // Obtenemos la obra específica
+        const token = localStorage.getItem('jwt');
+        if (!token) {
+          throw new Error('Token no disponible');
         }
+        
+        const response = await fetch(`http://localhost:1337/api/obras?populate=*&filters[users][id][$eq]=${user.id}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Error al obtener obras:', errorText);
+          throw new Error('Error al obtener obras');
+        }
+        
+        const obrasData = await response.json();
+        console.log('Obras obtenidas:', obrasData);
+        
+        // Encontrar la obra específica por su documentId
+        const obraEncontrada = obrasData.data.find(o => 
+          (o.documentId === obraDocumentId) || 
+          (o.attributes && o.attributes.documentId === obraDocumentId)
+        );
         
         if (!obraEncontrada) {
           console.error('Obra no encontrada con documentId:', obraDocumentId);
+          setError('Obra no encontrada');
           setLoadingData(false);
           return;
         }
         
-        setObra(obraEncontrada);
-        console.log('Obra encontrada:', obraEncontrada);
-        console.log('Obra ID:', obraEncontrada.id);
-        console.log('Obra documentId:', obraEncontrada.documentId);
+        // Normalizar datos de la obra (manejar tanto formato plano como Strapi v4)
+        const obraData = obraEncontrada.attributes || obraEncontrada;
+        setObra(obraData);
         
-        // 2. Obtenemos los departamentos filtrando por documentId
-        // Intentamos obtener todos los departamentos con populate
-        const deptosResponse = await departamentosService.getDepartamentosDetallados();
+        console.log('Obra encontrada:', obraData);
         
-        // Explorar la estructura completa del primer departamento para depuración
-        if (deptosResponse.data && deptosResponse.data.length > 0) {
-          console.log('EXPLORACIÓN DETALLADA DE ESTRUCTURA DE DEPARTAMENTO:');
-          const primerDepto = deptosResponse.data[0];
-          
-          // Imprimir estructura completa
-          console.log('Estructura completa:', JSON.stringify(primerDepto, null, 2));
-          
-          // Buscar específicamente dónde están los archivos de plano y boleto
-          const buscarEnObjeto = (obj, prefijo = '') => {
-            if (!obj || typeof obj !== 'object') return;
-            
-            Object.keys(obj).forEach(key => {
-              const ruta = prefijo ? `${prefijo}.${key}` : key;
-              
-              // Revisar si este campo podría ser un plano o boleto
-              if (
-                key === 'plano' || 
-                key === 'boleto' || 
-                key.includes('archivo') || 
-                key.includes('document')
-              ) {
-                console.log(`Posible archivo encontrado en: ${ruta}`, obj[key]);
-              }
-              
-              // Recursión para objetos anidados
-              if (obj[key] && typeof obj[key] === 'object' && !Array.isArray(obj[key])) {
-                buscarEnObjeto(obj[key], ruta);
-              }
-              
-              // Revisar también el primer elemento si es un array
-              if (Array.isArray(obj[key]) && obj[key].length > 0) {
-                console.log(`Array encontrado en: ${ruta}`, obj[key]);
-                if (typeof obj[key][0] === 'object') {
-                  buscarEnObjeto(obj[key][0], `${ruta}[0]`);
-                }
-              }
-            });
-          };
-          
-          buscarEnObjeto(primerDepto);
-        }
+        // Extraer los rubros usando la función robusta
+        const rubrosObra = extraerRubros(obraData);
+        console.log('Rubros de avance extraídos de la API:', rubrosObra);
+        setRubrosAvance(rubrosObra);
         
-        console.log('Todos los departamentos:', deptosResponse.data);
+        // Obtener el avance total desde la API
+        const avanceTotalObra = obtenerAvanceTotal(obraData);
+        console.log('Avance total de la obra obtenido de la API:', avanceTotalObra);
+        setAvanceTotal(avanceTotalObra);
         
-        // Filtramos manualmente por documentId de obra y cliente
-        const clienteDeptosEnObra = deptosResponse.data.filter(depto => {
-          // Adaptamos para manejar tanto formato plano como formato Strapi v4
-          const deptoData = depto.attributes || depto;
-          
-          // Accedemos a obra y cliente (que pueden estar anidados)
-          let obraObj, clienteObj;
-          
-          if (depto.attributes) {
-            // Formato Strapi v4
-            obraObj = getProperty(depto, 'attributes.obra.data.attributes') || getProperty(depto, 'attributes.obra');
-            clienteObj = getProperty(depto, 'attributes.cliente.data.attributes') || getProperty(depto, 'attributes.cliente');
-          } else {
-            // Formato plano
-            obraObj = depto.obra;
-            clienteObj = depto.cliente;
-          }
-          
-          const obraCoincide = obraObj && (obraObj.documentId === obraEncontrada.documentId);
-          const clienteCoincide = clienteObj && (clienteObj.documentId === cliente.documentId);
-          
-          if (obraCoincide) {
-            console.log('Encontrado departamento en esta obra:', getProperty(deptoData, 'nombre') || depto.id);
-          }
-          
-          if (clienteCoincide) {
-            console.log('Encontrado departamento de este cliente:', getProperty(deptoData, 'nombre') || depto.id);
-          }
-          
-          return obraCoincide && clienteCoincide;
-        });
-        
-        console.log('Departamentos encontrados por documentId:', clienteDeptosEnObra);
-        
-        if (clienteDeptosEnObra.length === 0) {
-          console.log('No se encontraron departamentos por documentId, intentando con método específico');
-          
-          // Backup: intentar con el endpoint específico si está disponible
-          try {
-            if (departamentosService.getDepartamentosPorClienteYObra) {
-              // Intentamos con el método específico que usa IDs numéricos
-              const deptosEspecificos = await departamentosService.getDepartamentosPorClienteYObra(
-                cliente.id, 
-                obraEncontrada.id
-              );
-              
-              if (deptosEspecificos.data && deptosEspecificos.data.length > 0) {
-                console.log('Departamentos encontrados con método específico:', deptosEspecificos.data);
-                setDepartamentos(deptosEspecificos.data);
-              } else {
-                setDepartamentos([]);
-              }
-            } else {
-              setDepartamentos([]);
-            }
-          } catch (error) {
-            console.error('Error al intentar método específico:', error);
-            setDepartamentos([]);
-          }
-        } else {
-          setDepartamentos(clienteDeptosEnObra);
-        }
+        // Obtener los renders de la obra
+        const rendersObra = obtenerRenders(obraData);
+        console.log('Renders obtenidos de la obra:', rendersObra);
+        setRenders(rendersObra);
         
       } catch (error) {
         console.error('Error al cargar datos:', error);
+        setError('Error al cargar los datos. Por favor, intenta nuevamente.');
       } finally {
         setLoadingData(false);
       }
     };
     
     fetchData();
-    
-    // Función de limpieza para el useEffect
-    return () => {
-      console.log('Limpieza del efecto de carga de obras');
-    };
-  }, [user, cliente, obraDocumentId]);
+  }, [user, obraDocumentId]);
   
   if (loading || loadingData) {
     return (
       <div className="min-h-screen bg-gray-100">
         <Navbar />
         <div className="flex">
-          <Sidebar />
           <main className="flex-1 p-6">
             <div className="flex justify-center items-center h-64">
               <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
@@ -270,15 +278,37 @@ export default function ObraDetailPage() {
     );
   }
   
-  if (!user || !obra) {
+  if (!user) {
     return (
       <div className="min-h-screen bg-gray-100">
         <Navbar />
         <div className="flex">
-          <Sidebar />
+          
           <main className="flex-1 p-6">
             <div className="bg-white p-6 rounded-lg shadow text-center">
-              <p>La obra solicitada no existe o no tienes acceso.</p>
+              <p>Debes iniciar sesión para ver esta página.</p>
+              <Link 
+                href="/login"
+                className="inline-block mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
+              >
+                Iniciar sesión
+              </Link>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+  
+  if (error || !obra) {
+    return (
+      <div className="min-h-screen bg-gray-100">
+        <Navbar />
+        <div className="flex">
+          
+          <main className="flex-1 p-6">
+            <div className="bg-white p-6 rounded-lg shadow text-center">
+              <p>{error || 'La obra solicitada no existe o no tienes acceso a ella.'}</p>
               <Link 
                 href="/obras"
                 className="inline-block mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
@@ -292,19 +322,24 @@ export default function ObraDetailPage() {
     );
   }
   
-  // Verificar departamentos para mostrar en la consola
-  if (departamentos.length > 0) {
-    console.log('DEPARTAMENTOS QUE SE VAN A RENDERIZAR:');
-    departamentos.forEach((depto, index) => {
-      console.log(`Departamento ${index + 1}:`, depto);
-    });
-  }
+  // Obtener la URL de la imagen principal
+  const getImageUrl = (obra) => {
+    if (obra.imagen_principal?.url) {
+      return `http://localhost:1337${obra.imagen_principal.url}`;
+    }
+    if (obra.imagen_principal?.data?.attributes?.url) {
+      return `http://localhost:1337${obra.imagen_principal.data.attributes.url}`;
+    }
+    return null;
+  };
+  
+  const imageUrl = getImageUrl(obra);
   
   return (
     <div className="min-h-screen bg-gray-100">
       <Navbar />
       <div className="flex">
-        <Sidebar />
+        
         <main className="flex-1 p-6">
           {/* Botón de volver */}
           <div className="mb-6">
@@ -323,9 +358,9 @@ export default function ObraDetailPage() {
           <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-6 border border-gray-200">
             <div className="md:flex">
               <div className="md:w-1/3 h-64 bg-gray-100 flex items-center justify-center">
-                {obra.imagen_principal ? (
+                {imageUrl ? (
                   <img 
-                    src={`http://localhost:1337${obra.imagen_principal.url}`} 
+                    src={imageUrl} 
                     alt={obra.nombre}
                     className="w-full h-full object-cover"
                   />
@@ -374,213 +409,77 @@ export default function ObraDetailPage() {
                   )}
                 </div>
                 
+                {/* Galería de renders */}
+                {renders && renders.length > 0 && (
+                  <div className="mb-4">
+                    <div className="flex items-center">
+                      <span className="font-semibold text-gray-700 mr-2">Galería:</span>
+                      <GalleryButton renders={renders} />
+                    </div>
+                  </div>
+                )}
+                
                 <div className="mt-6 border-t border-gray-200 pt-4">
                   <h3 className="text-lg font-semibold mb-2 text-gray-800">Descripción</h3>
-                  <p className="text-gray-700 leading-relaxed">{obra.descripcion}</p>
+                  <p className="text-gray-700 leading-relaxed">{obra.descripcion || 'Sin descripción disponible'}</p>
                 </div>
               </div>
             </div>
           </div>
           
-          {/* Lista de departamentos del cliente en esta obra */}
-          <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-6">
-            <h2 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-3">Mis Departamentos en esta Obra</h2>
-            
-            {departamentos.length === 0 ? (
-              <div className="text-center py-12 bg-gray-50 rounded-lg border border-gray-200">
-                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <p className="mt-2 text-lg font-medium text-gray-600">No tienes departamentos asociados en esta obra.</p>
-                <p className="mt-1 text-gray-500">Cuando adquieras departamentos, aparecerán en este listado.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto -mx-4 sm:-mx-6">
-                <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-                  <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 rounded-lg">
-                    <table className="min-w-full divide-y divide-gray-300">
-                      <thead className="bg-gray-100">
-                        <tr>
-                          <th scope="col" className="py-4 px-4 text-left text-sm font-semibold text-gray-700">Número</th>
-                          <th scope="col" className="py-4 px-4 text-right text-sm font-semibold text-gray-700">Precio Total</th>
-                          <th scope="col" className="py-4 px-4 text-center text-sm font-semibold text-gray-700">Estado</th>
-                          <th scope="col" className="py-4 px-4 text-center text-sm font-semibold text-gray-700">Renders</th>
-                          <th scope="col" className="py-4 px-4 text-center text-sm font-semibold text-gray-700">Plano</th>
-                          <th scope="col" className="py-4 px-4 text-center text-sm font-semibold text-gray-700">Boleto</th>
-                          <th scope="col" className="py-4 px-4 text-center text-sm font-semibold text-gray-700">Acciones</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200 bg-white">
-                        {departamentos.map((departamento, index) => {
-                          // Manejar tanto formato plano como formato Strapi v4
-                          const deptoData = departamento.attributes || departamento;
-                          
-                          // Obtener valores de forma segura (considerando posible anidación)
-
-
-
-                            const id = departamento.id;
-                          const numero = getProperty(deptoData, 'numero') || getProperty(deptoData, 'nombre') || `Departamento ${id}`;
-                          const precio = getProperty(deptoData, 'precio_total') || getProperty(deptoData, 'precio');
-                          const estado = getProperty(deptoData, 'estado');
-                          const documentId = getProperty(deptoData, 'documentId');
-                          
-                          // Obtener archivos relacionados utilizando las funciones mejoradas
-                          const renders = getProperty(deptoData, 'renders') || [];
-                          const plano = getPlanoFile(deptoData);
-                          const boleto = getBoletoFile(deptoData);
-                          
-                          // Función para obtener colores según el estado
-                          const getEstadoStyles = (estado) => {
-                            switch(estado) {
-                              case 'vendido':
-                                return 'bg-green-100 text-green-800 border-green-200';
-                              case 'reservado':
-                                return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-                              default:
-                                return 'bg-gray-100 text-gray-700 border-gray-200';
-                            }
-                          };
-                          
-                          // Componente mejorado para botones de descarga/visualización
-                          const DownloadButton = ({ file, label, icon, tipo = 'archivo' }) => {
-                            // Si no recibimos archivo, intentamos registrar la información para depuración
-                            if (!file) {
-                              console.log(`${tipo} no disponible o con formato desconocido`);
-                              return (
-                                <button disabled className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-500 text-xs font-medium rounded border border-gray-300 cursor-not-available">
-                                  <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                                  </svg>
-                                  No disponible
-                                </button>
-                              );
-                            }
-                            
-                            // Intentar obtener la URL de diferentes formas
-                            let url = null;
-                            
-                            // Registrar el archivo para depuración
-                            console.log(`Estructura del ${tipo}:`, file);
-                            
-                            // 1. Comprobar si es un objeto con url directa
-                            if (typeof file === 'object' && file !== null) {
-                              if (file.url) {
-                                url = `http://localhost:1337${file.url}`;
-                              } 
-                              // 2. Comprobar estructura Strapi v4
-                              else if (file.data && file.data.attributes) {
-                                url = `http://localhost:1337${file.data.attributes.url}`;
-                              }
-                              // 3. Comprobar si tiene attributes directamente
-                              else if (file.attributes && file.attributes.url) {
-                                url = `http://localhost:1337${file.attributes.url}`;
-                              }
-                              // 4. Si es un array, intentamos con el primer elemento
-                              else if (Array.isArray(file) && file.length > 0) {
-                                if (file[0].url) {
-                                  url = `http://localhost:1337${file[0].url}`;
-                                } else if (file[0].data && file[0].data.attributes) {
-                                  url = `http://localhost:1337${file[0].data.attributes.url}`;
-                                }
-                              }
-                            }
-                            
-                            // Si después de todo no tenemos URL, mostramos no disponible
-                            if (!url) {
-                              console.log(`No se pudo obtener URL para ${tipo}`);
-                              return (
-                                <button disabled className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-500 text-xs font-medium rounded border border-gray-300 cursor-not-available">
-                                  <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                                  </svg>
-                                  No disponible
-                                </button>
-                              );
-                            }
-                            
-                            // Si tenemos URL, mostramos el botón
-                            return (
-                              <a 
-                                href={url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center px-2 py-1 bg-white text-blue-600 text-xs font-medium rounded border border-blue-300 hover:bg-blue-50 transition-colors"
-                              >
-                                {icon}
-                                {label}
-                              </a>
-                            );
-                          };
-                          
-                          // Iconos para los botones
-                          const downloadIcon = (
-                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-                            </svg>
-                          );
-                          
-                          const viewIcon = (
-                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
-                            </svg>
-                          );
-                          
-                          return (
-                            <tr key={`${id}-${index}`} className="hover:bg-gray-50 transition-colors">
-                              <td className="py-4 px-4 text-sm font-medium text-gray-900">{numero}</td>
-                              <td className="py-4 px-4 text-sm text-gray-700 text-right font-medium">
-                                {precio ? 
-                                  new Intl.NumberFormat('es-AR', { 
-                                    style: 'currency', 
-                                    currency: 'ARS' 
-                                  }).format(precio) : 
-                                  'No especificado'
-                                }
-                              </td>
-                              <td className="py-4 px-4 text-center">
-                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getEstadoStyles(estado)}`}>
-                                  {estado || 'No especificado'}
-                                </span>
-                              </td>
-                              <td className="py-4 px-4 text-center">
-                                <GalleryButton renders={renders} />
-                              </td>
-                              <td className="py-4 px-4 text-center">
-                                <DownloadButton 
-                                  file={plano}
-                                  label="Ver plano"
-                                  icon={viewIcon}
-                                  tipo="plano"
-                                />
-                              </td>
-                              <td className="py-4 px-4 text-center">
-                                <DownloadButton 
-                                  file={boleto}
-                                  label="Descargar"
-                                  icon={downloadIcon}
-                                  tipo="boleto"
-                                />
-                              </td>
-                              <td className="py-4 px-4 text-center">
-                                <Link 
-                                  href={`/departamentos/${documentId || id}`}
-                                  className="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                                >
-                                  Ver detalles
-                                </Link>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+          {/* Avance de la obra por rubros */}
+          {rubrosAvance.length > 0 && (
+            <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-6 border border-gray-200">
+              <div className="p-6">
+                <h2 className="text-2xl font-bold mb-6 text-gray-800 border-b pb-3">Avance de la Obra</h2>
+                
+                {/* Porcentaje total de avance (ahora desde Strapi) */}
+                <div className="mb-8">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-lg font-medium text-gray-700">Avance total de la obra</span>
+                    <span className="text-lg font-bold text-gray-800">{avanceTotal}%</span>
+                  </div>
+                  <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full rounded-full ${
+                        avanceTotal < 30 ? 'bg-red-500' : 
+                        avanceTotal < 70 ? 'bg-yellow-500' : 
+                        'bg-green-500'
+                      }`}
+                      style={{ width: `${avanceTotal}%` }}
+                    ></div>
                   </div>
                 </div>
+                
+                {/* Lista de rubros */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {rubrosAvance.map((rubro, index) => (
+                    <div key={index} className="mb-4">
+                      <div className="flex justify-between items-center mb-1">
+                        <span className="text-sm font-medium text-gray-700">{rubro.nombre}</span>
+                        <span className="text-sm font-bold text-gray-800">{rubro.porcentaje}%</span>
+                      </div>
+                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full ${
+                            rubro.porcentaje < 30 ? 'bg-red-500' : 
+                            rubro.porcentaje < 70 ? 'bg-yellow-500' : 
+                            'bg-green-500'
+                          }`}
+                          style={{ width: `${rubro.porcentaje}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                
+                {/* Nota */}
+                <div className="mt-8 text-sm text-gray-500 border-t border-gray-200 pt-4">
+                  <p className="italic">* El avance se actualiza semanalmente según los informes de obra.</p>
+                </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </main>
       </div>
     </div>

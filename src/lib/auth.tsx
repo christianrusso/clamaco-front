@@ -1,5 +1,4 @@
 'use client';
-
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { authService } from './api';
@@ -13,11 +12,8 @@ type User = {
 type Cliente = {
   id: number;
   documentId: string;
-  nombre: string;
-  email: string;
-  telefono: string;
-  direccion: string;
-  departamentos: any[];
+  nombre?: string;
+  email?: string;
 };
 
 type AuthContextType = {
@@ -38,16 +34,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const checkAuth = async () => {
-      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const token = typeof window !== 'undefined' ? localStorage.getItem('jwt') : null;
+      
       if (token) {
         try {
-          const clienteData = await authService.getClienteInfo();
-          setCliente(clienteData.data);
-          // Simulamos datos del usuario ya que no tenemos un endpoint específico
-          setUser({ id: 1, username: 'usuario', email: clienteData.data.email });
+          const userData = await authService.getCurrentUser(token);
+          setUser(userData);
+          
+          // Asumiendo que el cliente está asociado al usuario o viene en la respuesta
+          if (userData.cliente) {
+            setCliente(userData.cliente);
+          } else if (userData.id) {
+            // Si no viene el cliente, usamos temporalmente los datos del usuario
+            setCliente({
+              id: userData.id,
+              documentId: `user-${userData.id}`,
+              nombre: userData.username,
+              email: userData.email
+            });
+          }
         } catch (error) {
           console.error('Error al verificar autenticación:', error);
-          if (typeof window !== 'undefined') localStorage.removeItem('token');
+          if (typeof window !== 'undefined') localStorage.removeItem('jwt');
         }
       }
       setLoading(false);
@@ -60,14 +68,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const response = await authService.login(identifier, password);
-      if (typeof window !== 'undefined') localStorage.setItem('token', response.jwt);
+      if (typeof window !== 'undefined') localStorage.setItem('jwt', response.jwt);
+      
+      // Guardamos los datos del usuario
       setUser(response.user);
       
-      if (response.cliente) {
-        setCliente(response.cliente);
-      } else {
-        const clienteData = await authService.getClienteInfo();
-        setCliente(clienteData.data);
+      // Si la respuesta contiene datos del cliente, los guardamos
+      if (response.user.cliente) {
+        setCliente(response.user.cliente);
+      } else if (response.user.id) {
+        // Si no viene el cliente, usamos temporalmente los datos del usuario
+        setCliente({
+          id: response.user.id,
+          documentId: `user-${response.user.id}`,
+          nombre: response.user.username,
+          email: response.user.email
+        });
       }
       
       router.push('/obras');
@@ -80,10 +96,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    if (typeof window !== 'undefined') localStorage.removeItem('token');
+    // 1. Primero limpiamos los estados en memoria
     setUser(null);
     setCliente(null);
-    router.push('/login');
+    setLoading(false);
+    
+    // 2. Luego eliminamos el token del localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('jwt');
+      
+      // 3. Redirección directa usando window.location para una redirección completa
+      // (esto provocará una recarga completa de la página, reiniciando todo el estado)
+      window.location.href = '/login';
+    }
   };
 
   return (

@@ -6,21 +6,14 @@ import { consultasService } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import Sidebar from '@/components/Sidebar';
-
-import UserIcon from '@heroicons/react/24/outline/UserIcon';
-import IdentificationIcon from '@heroicons/react/24/outline/IdentificationIcon';
-import PencilIcon from '@heroicons/react/24/outline/PencilIcon';
-import EnvelopeIcon from '@heroicons/react/24/outline/EnvelopeIcon';
-
-
+import { UserIcon, IdentificationIcon, PencilIcon, EnvelopeIcon } from '@heroicons/react/24/outline';
 
 export default function ContactPage() {
   const { user, cliente, loading } = useAuth();
   const router = useRouter();
 
   const [formData, setFormData] = useState({
-    nombre: '',
-    dni: '',
+    email: '',
     asunto: '',
     mensaje: '',
     tipoConsulta: 'general',
@@ -39,8 +32,7 @@ export default function ContactPage() {
     } else if (cliente) {
       setFormData((prev) => ({
         ...prev,
-        nombre: cliente.nombre || '',
-        dni: cliente.dni || '',
+        email: user.email || user?.username || ''
       }));
     }
   }, [user, loading, router, cliente]);
@@ -69,49 +61,64 @@ export default function ContactPage() {
     setSubmitStatus({ success: false, error: false, message: '' });
 
     try {
+      // Preparamos los datos para enviar a Strapi
       const consultaData = {
         data: {
           asunto: formData.asunto,
           mensaje: formData.mensaje,
-          tipo: formData.tipoConsulta,
-          cliente: cliente.id,
-          estado: 'pendiente',
+          tipoConsulta: formData.tipoConsulta,
+          // Conectamos con el usuario y cliente
+          email: user.email,
         },
       };
 
-      await consultasService.createConsulta(consultaData);
+      console.log('Enviando consulta:', consultaData);
+      
+      // Utilizamos el método createConsulta del servicio
+      const response = await consultasService.createConsulta(consultaData);
+      console.log('Respuesta del servidor:', response);
+      
       setSubmitStatus({
         success: true,
         error: false,
         message: 'Consulta enviada correctamente. Pronto nos comunicaremos.',
       });
 
+      // Limpiamos el formulario manteniendo el nombre
       setFormData({
-        nombre: cliente?.nombre || '',
-        dni: cliente?.dni || '',
+        email: cliente?.email || user?.username || '',
         asunto: '',
         mensaje: '',
         tipoConsulta: 'general',
       });
     } catch (error) {
+      console.error('Error al enviar consulta:', error);
+      
       setSubmitStatus({
         success: false,
         error: true,
-        message: 'Error al enviar la consulta. Intente nuevamente.',
+        message: `Error al enviar la consulta: ${error.message || 'Intente nuevamente.'}`,
       });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (loading) return null;
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#fdf8f1] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#D9862A]"></div>
+      </div>
+    );
+  }
+  
   if (!user) return null;
 
   return (
     <div className="min-h-screen bg-[#fdf8f1]">
       <Navbar />
-      <div className="flex">
-        <Sidebar />
+      <div className="flex flex-col md:flex-row">
+
         <main className="flex-1 p-6">
           <div className="max-w-2xl mx-auto">
             <h1 className="text-2xl font-bold mb-6 text-[#3D341E]">Contacto</h1>
@@ -136,36 +143,13 @@ export default function ContactPage() {
 
                 <InputWithIcon
                   icon={<UserIcon className="h-5 w-5 text-[#3D341E]" />}
-                  value={formData.nombre}
-                  name="nombre"
-                  label="Nombre"
+                  value={formData.email}
+                  name="email"
+                  label="Email"
                   onChange={handleChange}
-                  disabled
                 />
 
-                <InputWithIcon
-                  icon={<IdentificationIcon className="h-5 w-5 text-[#3D341E]" />}
-                  value={formData.dni}
-                  name="dni"
-                  label="DNI"
-                  onChange={handleChange}
-                  disabled
-                />
-
-                <SelectWithIcon
                 
-                  icon={<PencilIcon className="h-5 w-5 text-[#3D341E]" />}
-                  name="tipoConsulta"
-                  value={formData.tipoConsulta}
-                  onChange={handleChange}
-                  options={[
-                    { value: 'general', label: 'Consulta General' },
-                    { value: 'obra', label: 'Consulta sobre Obra' },
-                    { value: 'departamento', label: 'Consulta sobre Departamento' },
-                    { value: 'facturacion', label: 'Facturación' },
-                    { value: 'postventa', label: 'Post-Venta' },
-                  ]}
-                />
 
                 <InputWithIcon
                   icon={<EnvelopeIcon className="h-5 w-5 text-[#3D341E]" />}
@@ -228,25 +212,3 @@ function InputWithIcon({ icon, label, name, value, onChange, required = false, d
   );
 }
 
-function SelectWithIcon({ icon, name, value, onChange, options }) {
-  return (
-    <div>
-      <label className="block text-sm font-medium text-[#3D341E] mb-1">Motivo</label>
-      <div className="flex items-center border border-[#d6c3b1] rounded-md px-3 py-2 bg-white">
-        <div className="mr-2">{icon}</div>
-        <select
-          name={name}
-          value={value}
-          onChange={onChange}
-          className="w-full focus:outline-none text-[#3D341E] bg-transparent"
-        >
-          {options.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
-            </option>
-          ))}
-        </select>
-      </div>
-    </div>
-  );
-}
