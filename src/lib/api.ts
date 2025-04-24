@@ -38,7 +38,7 @@ export const authService = {
     }
   },
 
-  getCurrentUser: async (token) => {
+  getCurrentUser: async (token: string) => {
     try {
       console.log('Obteniendo datos del usuario actual');
       
@@ -89,7 +89,7 @@ export const authService = {
 };
 
 export const consultasService = {
-  createConsulta: async (consultaData) => {
+  createConsulta: async (consultaData: any) => {
     try {
       const token = localStorage.getItem('jwt');
       const headers = {
@@ -118,7 +118,7 @@ export const consultasService = {
     }
   },
   
-  enviarConsulta: async (datos) => {
+  enviarConsulta: async (datos: any) => {
     return consultasService.createConsulta({ data: datos });
   },
   
@@ -146,7 +146,7 @@ export const consultasService = {
     }
   },
   
-  getConsultasPorUsuario: async (userId) => {
+  getConsultasPorUsuario: async (userId: any) => {
     try {
       const token = localStorage.getItem('jwt');
       if (!token) {
