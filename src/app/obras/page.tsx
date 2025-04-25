@@ -39,7 +39,7 @@ export default function ObrasPage() {
       try {
         if (!user) return;
 
-        const res = await fetch(`https://clamaco-backend.onrender.com/api/obras?filters[users][id][$eq]=${user.id}&populate=imagen_principal`, {
+        const res = await fetch(`http://localhost:1337/api/obras?filters[users][id][$eq]=${user.id}`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('jwt')}`,
           },
@@ -56,16 +56,6 @@ export default function ObrasPage() {
 
     if (user) fetchData();
   }, [user]);
-
-  const getImageUrl = (obra: Obra) => {
-    if (obra.imagen_principal?.url) {
-      return `https://clamaco-backend.onrender.com${obra.imagen_principal.url}`;
-    }
-    if (obra.imagen_principal?.data?.attributes?.url) {
-      return `https://clamaco-backend.onrender.com${obra.imagen_principal.data.attributes.url}`;
-    }
-    return null;
-  };
 
   if (!user) return null;
 
@@ -91,7 +81,7 @@ export default function ObrasPage() {
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {obras.map((obra) => {
-                    const imageUrl = getImageUrl(obra);
+                    const imageUrl = obra.imagen_principal;
 
                     return (
                       <div key={obra.id} className="bg-white rounded-lg shadow-md overflow-hidden">

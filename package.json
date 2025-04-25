@@ -5,8 +5,9 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build --no-lint",
-    "start": "next start",
+    "start": "next start -p ${PORT:-3000}",
     "lint": "next lint"
+    
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

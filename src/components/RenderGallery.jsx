@@ -8,11 +8,22 @@ const RenderGalleryModal = ({ renders, isOpen, onClose }) => {
   
   if (!isOpen || !renders || renders.length === 0) return null;
   
-  // Función para construir URL de archivo
+  // Función actualizada para construir URL de archivo
   const getFileUrl = (file) => {
     if (!file) return null;
-    const url = file.url || (file.data && file.data.attributes && file.data.attributes.url);
-    return url ? `https://clamaco-backend.onrender.com${url}` : null;
+    
+    // Si es un string directo (nueva estructura), usarlo directamente
+    if (typeof file === 'string') return file;
+    
+    // Si es un objeto con url directa
+    if (file.url) return `${file.url}`;
+    
+    // Si es un objeto con estructura de Strapi
+    if (file.data && file.data.attributes && file.data.attributes.url) {
+      return `http://localhost:1337${file.data.attributes.url}`;
+    }
+    
+    return null;
   };
   
   const currentRender = renders[currentIndex];
@@ -99,7 +110,7 @@ const RenderGalleryModal = ({ renders, isOpen, onClose }) => {
   );
 };
 
-// Modificación del componente DownloadButton para los renders
+// Modificación del componente GalleryButton para los renders
 const GalleryButton = ({ renders }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   

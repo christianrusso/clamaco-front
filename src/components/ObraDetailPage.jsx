@@ -131,37 +131,41 @@ function obtenerAvanceTotal(obraData) {
 
 // Función para extraer los renders de la obra
 function obtenerRenders(obraData) {
-  // Intentar obtener renders directamente
+  const renders = [];
+  
+  // Si existe la estructura antigua (colección de renders)
   if (obraData.renders) {
-    return obraData.renders;
-  }
-  
-  // Si es un objeto de Strapi con datos anidados
-  if (obraData.renders?.data) {
-    return obraData.renders.data;
-  }
-  
-  // Buscar en estructuras anidadas
-  let renders = null;
-  
-  function buscarRendersRecursivo(obj) {
-    if (!obj || typeof obj !== 'object') return;
-    
-    if ('renders' in obj) {
-      renders = obj.renders?.data || obj.renders;
-      return;
+    if (Array.isArray(obraData.renders)) {
+      return obraData.renders;
+    } else if (obraData.renders?.data) {
+      return obraData.renders.data;
     }
-    
-    Object.values(obj).forEach(value => {
-      if (value && typeof value === 'object') {
-        buscarRendersRecursivo(value);
-      }
-    });
   }
   
-  buscarRendersRecursivo(obraData);
+  // Buscar los campos renders1, renders2, etc.
+  for (let i = 1; i <= 5; i++) {
+    const renderField = `renders${i}`;
+    if (obraData[renderField] && obraData[renderField] !== '') {
+      // Si es un string directo (URL), agregarlo como objeto
+      if (typeof obraData[renderField] === 'string') {
+        renders.push({
+          id: i,
+          url: obraData[renderField],
+          nombre: `Render ${i}`
+        });
+      } 
+      // Si es un objeto con estructura de Strapi
+      else if (obraData[renderField]?.data?.attributes?.url) {
+        renders.push({
+          id: i,
+          url: obraData[renderField].data.attributes.url,
+          nombre: `Render ${i}`
+        });
+      }
+    }
+  }
   
-  return renders || [];
+  return renders;
 }
 
 export default function ObraDetailPage() {
@@ -203,7 +207,7 @@ export default function ObraDetailPage() {
           throw new Error('Token no disponible');
         }
         
-        const response = await fetch(`https://clamaco-backend.onrender.com/api/obras?populate=*&filters[users][id][$eq]=${user.id}`, {
+        const response = await fetch(`http://localhost:1337/api/obras?populate=*&filters[users][id][$eq]=${user.id}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -321,19 +325,9 @@ export default function ObraDetailPage() {
       </div>
     );
   }
+
   
-  // Obtener la URL de la imagen principal
-  const getImageUrl = (obra) => {
-    if (obra.imagen_principal?.url) {
-      return `https://clamaco-backend.onrender.com${obra.imagen_principal.url}`;
-    }
-    if (obra.imagen_principal?.data?.attributes?.url) {
-      return `https://clamaco-backend.onrender.com${obra.imagen_principal.data.attributes.url}`;
-    }
-    return null;
-  };
-  
-  const imageUrl = getImageUrl(obra);
+  const imageUrl = obra.imagen_principal;
   
   return (
     <div className="min-h-screen bg-gray-100">
@@ -410,14 +404,15 @@ export default function ObraDetailPage() {
                 </div>
                 
                 {/* Galería de renders */}
-                {renders && renders.length > 0 && (
-                  <div className="mb-4">
-                    <div className="flex items-center">
-                      <span className="font-semibold text-gray-700 mr-2">Galería:</span>
-                      <GalleryButton renders={renders} />
-                    </div>
-                  </div>
-                )}
+
+{renders && renders.length > 0 && (
+  <div className="mb-4">
+    <div className="flex items-center">
+      <span className="font-semibold text-gray-700 mr-2">Galería:</span>
+      <GalleryButton renders={renders} />
+    </div>
+  </div>
+)}
                 
                 <div className="mt-6 border-t border-gray-200 pt-4">
                   <h3 className="text-lg font-semibold mb-2 text-gray-800">Descripción</h3>
