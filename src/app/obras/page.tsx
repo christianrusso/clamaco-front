@@ -88,7 +88,7 @@ export default function ObrasPage() {
                         <div className="h-60 bg-gray-100 flex items-center justify-center">
                           {imageUrl ? (
                             <img
-                              src={imageUrl}
+                              src={typeof imageUrl === 'string' ? imageUrl : imageUrl?.data?.attributes?.url || ''}
                               alt={obra.nombre}
                               className="w-full h-full object-cover"
                             />
