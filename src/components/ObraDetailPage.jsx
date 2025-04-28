@@ -207,7 +207,7 @@ export default function ObraDetailPage() {
           throw new Error('Token no disponible');
         }
         
-        const response = await fetch(`http://localhost:1337/api/obras?populate=*&filters[users][id][$eq]=${user.id}`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/obras?populate=*&filters[users][id][$eq]=${user.id}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

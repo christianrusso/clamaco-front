@@ -20,7 +20,8 @@ const RenderGalleryModal = ({ renders, isOpen, onClose }) => {
     
     // Si es un objeto con estructura de Strapi
     if (file.data && file.data.attributes && file.data.attributes.url) {
-      return `http://localhost:1337${file.data.attributes.url}`;
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL.replace(/\/api$/, '');
+      return `${baseUrl}${file.data.attributes.url}`;
     }
     
     return null;

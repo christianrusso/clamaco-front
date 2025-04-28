@@ -39,7 +39,7 @@ export default function ObrasPage() {
       try {
         if (!user) return;
 
-        const res = await fetch(`http://localhost:1337/api/obras?filters[users][id][$eq]=${user.id}`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/obras?filters[users][id][$eq]=${user.id}`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('jwt')}`,
           },
