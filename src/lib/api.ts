@@ -5,7 +5,7 @@ export const authService = {
     try {
       console.log('Intentando login con:', identifier);
       
-      const response = await fetch(`https://clamaco-backend.onrender.com/api/auth/local`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/local`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
