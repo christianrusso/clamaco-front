@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth';
+import { KeyIcon } from '@heroicons/react/24/outline';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -45,6 +46,14 @@ const Navbar = () => {
             {user ? (
               <div className="flex items-center space-x-4">
                 <span className="text-sm text-white">¡Hola, {user.username}!</span>
+                {/* Enlace para cambiar contraseña - Versión desktop */}
+                <Link 
+                  href="/cambiar-password" 
+                  className="inline-flex items-center text-white hover:text-gray-100"
+                  title="Cambiar contraseña"
+                >
+                  <KeyIcon className="h-5 w-5" />
+                </Link>
                 <button
                   onClick={handleLogout}
                   className="border border-white rounded-md px-3 py-1 text-sm text-white hover:bg-[#d97d24] transition-colors"
@@ -123,6 +132,16 @@ const Navbar = () => {
               <div className="px-4 py-2">
                 <p className="text-sm font-medium text-white">¡Hola, {user.username}!</p>
               </div>
+              {/* Enlace para cambiar contraseña - Versión móvil */}
+              <Link 
+                href="/cambiar-password" 
+                className="block w-full text-left px-4 py-2 text-base font-medium text-white hover:bg-[#d97d24] transition-colors"
+              >
+                <div className="flex items-center">
+                  <KeyIcon className="h-5 w-5 mr-2" />
+                  Cambiar Contraseña
+                </div>
+              </Link>
               <button
                 onClick={handleLogout}
                 className="block w-full text-left px-4 py-2 text-base font-medium text-white hover:bg-[#d97d24] transition-colors"

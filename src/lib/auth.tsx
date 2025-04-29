@@ -16,12 +16,20 @@ type Cliente = {
   email?: string;
 };
 
+// Tipo para los datos de cambio de contraseña
+type PasswordChangeData = {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+};
+
 type AuthContextType = {
   user: User | null;
   cliente: Cliente | null;
   loading: boolean;
   login: (identifier: string, password: string) => Promise<void>;
   logout: () => void;
+  updatePassword: (passwordData: PasswordChangeData) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -111,8 +119,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Nueva función para cambiar la contraseña
+  const updatePassword = async (passwordData: PasswordChangeData) => {
+    if (!user) {
+      throw new Error('Usuario no autenticado');
+    }
+
+    try {
+      // Obtener el token del localStorage
+      const token = typeof window !== 'undefined' ? localStorage.getItem('jwt') : null;
+      
+      if (!token) {
+        throw new Error('No se encontró el token de autenticación');
+      }
+
+      // Usar el servicio de autenticación para cambiar la contraseña
+      const response = await authService.changePassword({
+        currentPassword: passwordData.currentPassword,
+        password: passwordData.newPassword,
+        passwordConfirmation: passwordData.confirmPassword
+      }, token);
+
+      return response;
+    } catch (error) {
+      console.error('Error al cambiar la contraseña:', error);
+      throw error;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, cliente, loading, login, logout }}>
+    <AuthContext.Provider value={{ user, cliente, loading, login, logout, updatePassword }}>
       {children}
     </AuthContext.Provider>
   );
