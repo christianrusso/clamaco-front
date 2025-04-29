@@ -2,9 +2,9 @@
 
 import { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useAuth } from '@/lib/auth';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Navbar from '@/components/Navbar';
-import { LockClosedIcon, ShieldCheckIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
+import { LockClosedIcon, ShieldCheckIcon, ArrowPathIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
 interface FormularioPassword {
   passwordActual: string;
@@ -21,6 +21,11 @@ interface EstadoEnvio {
 export default function CambiarPasswordPage() {
   const { user, loading, updatePassword } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // Solo consideramos el parámetro de URL para determinar si es obligatorio
+  // NO usamos user?.mustChangePassword para evitar bucles
+  const esObligatorio = searchParams.get('obligatorio') === 'true';
 
   const [formulario, setFormulario] = useState<FormularioPassword>({
     passwordActual: '',
@@ -35,9 +40,13 @@ export default function CambiarPasswordPage() {
     mensaje: '',
   });
 
+  // Simplificamos este useEffect para evitar bucles
   useEffect(() => {
     if (!loading && !user) {
+      console.log('No hay usuario autenticado, redirigiendo a login');
       router.push('/login');
+    } else if (user) {
+      console.log('Usuario autenticado en CambiarPasswordPage');
     }
   }, [user, loading, router]);
 
@@ -108,6 +117,14 @@ export default function CambiarPasswordPage() {
         passwordNuevo: '',
         confirmarPassword: '',
       });
+      
+      // Si era un cambio obligatorio, redirigir a la página principal después de 2 segundos
+      if (esObligatorio) {
+        console.log('Cambio de contraseña exitoso, redirigiendo en 2 segundos...');
+        setTimeout(() => {
+          router.push('/obras');
+        }, 2000);
+      }
     } catch (error: any) {
       console.error('Error al cambiar la contraseña:', error);
       
@@ -129,6 +146,7 @@ export default function CambiarPasswordPage() {
     );
   }
   
+  // Simplificamos esto también para evitar problemas
   if (!user) return null;
 
   return (
@@ -144,6 +162,16 @@ export default function CambiarPasswordPage() {
                 <h2 className="text-xl font-semibold">Cambio de Contraseña</h2>
                 <p className="text-sm">Complete el formulario para actualizar su contraseña.</p>
               </div>
+
+              {esObligatorio && (
+                <div className="bg-amber-50 border-l-4 border-amber-400 p-4 m-4 text-amber-700 rounded flex items-start">
+                  <ExclamationTriangleIcon className="h-5 w-5 mr-2 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-medium">¡Cambio de contraseña obligatorio!</p>
+                    <p className="text-sm">Por motivos de seguridad, debe cambiar su contraseña inicial antes de continuar utilizando el sistema.</p>
+                  </div>
+                </div>
+              )}
 
               <form onSubmit={manejarEnvio} className="p-6 space-y-4">
                 {estadoEnvio.exito && (

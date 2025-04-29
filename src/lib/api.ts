@@ -1,9 +1,7 @@
-// Suponiendo que este es el archivo api.ts o un fragmento del mismo
-
-// Importaciones necesarias (ajusta según tu proyecto)
+// Importaciones necesarias
 import axios from 'axios';
 
-// URL base de la API (ajusta según tu configuración)
+// Define la URL base de la API
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:1337';
 
 // Tipo para los datos de cambio de contraseña
@@ -11,17 +9,22 @@ type PasswordChangePayload = {
   currentPassword: string;
   password: string;
   passwordConfirmation: string;
+  updateMustChangePassword?: boolean;
 };
 
-// Servicio de autenticación
+// Servicio de autenticación - exportado como objeto nombrado
 export const authService = {
-  // Métodos existentes
+  // Login de usuario
   async login(identifier: string, password: string) {
     try {
+      console.log(`Enviando solicitud de login a ${API_URL}/auth/local`);
+      
       const response = await axios.post(`${API_URL}/auth/local`, {
         identifier,
         password,
       });
+      
+      console.log('Respuesta de login recibida:', response.status);
       return response.data;
     } catch (error) {
       console.error('Error en servicio de login:', error);
@@ -29,13 +32,18 @@ export const authService = {
     }
   },
 
+  // Obtener usuario actual
   async getCurrentUser(token: string) {
     try {
-      const response = await axios.get(`${API_URL}/users/me`, {
+      console.log(`Obteniendo usuario actual desde ${API_URL}/users/me`);
+      
+      const response = await axios.get(`${API_URL}/users/me?populate=*`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
+      
+      console.log('Datos de usuario obtenidos correctamente');
       return response.data;
     } catch (error) {
       console.error('Error al obtener usuario actual:', error);
@@ -43,16 +51,27 @@ export const authService = {
     }
   },
 
-  // Nuevo método para cambiar la contraseña
+  // Cambiar contraseña
   async changePassword(passwordData: PasswordChangePayload, token: string) {
     try {
+      console.log(`Enviando solicitud de cambio de contraseña a ${API_URL}/auth/change-password`);
+      
+      const payload = {
+        currentPassword: passwordData.currentPassword,
+        password: passwordData.password,
+        passwordConfirmation: passwordData.passwordConfirmation
+      };
+      
+      // Si se debe actualizar el flag mustChangePassword, lo añadimos al payload
+      if (passwordData.updateMustChangePassword !== undefined) {
+        Object.assign(payload, { 
+          updateMustChangePassword: true 
+        });
+      }
+      
       const response = await axios.post(
         `${API_URL}/auth/change-password`,
-        {
-          currentPassword: passwordData.currentPassword,
-          password: passwordData.password,
-          passwordConfirmation: passwordData.passwordConfirmation,
-        },
+        payload,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -60,6 +79,8 @@ export const authService = {
           },
         }
       );
+      
+      console.log('Respuesta de cambio de contraseña:', response.status);
       return response.data;
     } catch (error) {
       console.error('Error al cambiar contraseña:', error);
@@ -70,7 +91,36 @@ export const authService = {
   // Otros métodos que puedas tener...
 };
 
-// Exporta otros servicios si los tienes
+// Exporta otros servicios como objetos nombrados
 export const consultasService = {
-  // Métodos de tu servicio de consultas...
+  // Método para crear una consulta
+  async createConsulta(consultaData) {
+    try {
+      console.log(`Enviando consulta a ${API_URL}/api/consultas`);
+      
+      const token = localStorage.getItem('jwt');
+      if (!token) {
+        throw new Error('No se encontró el token de autenticación');
+      }
+      
+      const response = await axios.post(
+        `${API_URL}/api/consultas`, 
+        consultaData,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+      
+      console.log('Consulta creada correctamente');
+      return response.data;
+    } catch (error) {
+      console.error('Error al crear consulta:', error);
+      throw error;
+    }
+  },
+  
+  // Otros métodos para consultas...
 };

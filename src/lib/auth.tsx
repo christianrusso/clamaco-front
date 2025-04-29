@@ -1,12 +1,13 @@
 'use client';
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { authService } from './api';
 
 type User = {
   id: number;
   username: string;
   email: string;
+  mustChangePassword?: boolean;
 };
 
 type Cliente = {
@@ -30,15 +31,18 @@ type AuthContextType = {
   login: (identifier: string, password: string) => Promise<void>;
   logout: () => void;
   updatePassword: (passwordData: PasswordChangeData) => Promise<void>;
+  setMustChangePassword: (value: boolean) => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Aseguramos que esta exportación sea nombrada y no por defecto
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [cliente, setCliente] = useState<Cliente | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -46,8 +50,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (token) {
         try {
+          console.log('Verificando autenticación...');
           const userData = await authService.getCurrentUser(token);
+          console.log('Datos del usuario obtenidos:', userData);
           setUser(userData);
+          
+          // Verificar si el usuario debe cambiar su contraseña y NO estamos en la página de cambio de contraseña
+          if (userData.mustChangePassword === true && pathname !== '/cambiar-password') {
+            console.log('Usuario debe cambiar contraseña y no está en la página correcta');
+            router.push('/cambiar-password?obligatorio=true');
+            // No retornamos aquí, permitimos que continue para actualizar el estado
+          }
           
           // Asumiendo que el cliente está asociado al usuario o viene en la respuesta
           if (userData.cliente) {
@@ -70,7 +83,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     checkAuth();
-  }, []);
+  }, [pathname, router]);
 
   const login = async (identifier: string, password: string) => {
     setLoading(true);
@@ -94,7 +107,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       }
       
-      router.push('/obras');
+      // Verificar si el usuario debe cambiar su contraseña
+      if (response.user.mustChangePassword === true) {
+        console.log('Usuario debe cambiar contraseña después de login');
+        router.push('/cambiar-password?obligatorio=true');
+      } else {
+        console.log('Redirigiendo a obras después de login');
+        router.push('/obras');
+      }
     } catch (error) {
       console.error('Error de login:', error);
       throw error;
@@ -112,14 +132,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 2. Luego eliminamos el token del localStorage
     if (typeof window !== 'undefined') {
       localStorage.removeItem('jwt');
-      
-      // 3. Redirección directa usando window.location para una redirección completa
-      // (esto provocará una recarga completa de la página, reiniciando todo el estado)
-      window.location.href = '/login';
+      router.push('/login');
     }
   };
 
-  // Nueva función para cambiar la contraseña
+  // Función para actualizar el flag mustChangePassword
+  const setMustChangePassword = (value: boolean) => {
+    if (user) {
+      setUser({
+        ...user,
+        mustChangePassword: value
+      });
+    }
+  };
+
+  // Función para cambiar la contraseña
   const updatePassword = async (passwordData: PasswordChangeData) => {
     if (!user) {
       throw new Error('Usuario no autenticado');
@@ -137,8 +164,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await authService.changePassword({
         currentPassword: passwordData.currentPassword,
         password: passwordData.newPassword,
-        passwordConfirmation: passwordData.confirmPassword
+        passwordConfirmation: passwordData.confirmPassword,
+        updateMustChangePassword: user.mustChangePassword
       }, token);
+      
+      // Si la operación fue exitosa y el usuario tenía el flag activo, lo actualizamos
+      if (user.mustChangePassword) {
+        setMustChangePassword(false);
+      }
 
       return response;
     } catch (error) {
@@ -148,12 +181,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, cliente, loading, login, logout, updatePassword }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      cliente, 
+      loading, 
+      login, 
+      logout, 
+      updatePassword,
+      setMustChangePassword
+    }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
+// Aseguramos que esta exportación sea nombrada y no por defecto
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {
@@ -161,3 +203,5 @@ export function useAuth() {
   }
   return context;
 }
+
+// No hay exportación por defecto en este archivo
