@@ -143,6 +143,7 @@ export default function ObraDetailPage() {
   const [renders, setRenders] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [error, setError] = useState(null);
+  const [isAvanceCollapsed, setIsAvanceCollapsed] = useState(false); // Estado para controlar el colapso
   const params = useParams();
   const router = useRouter();
 
@@ -199,6 +200,11 @@ export default function ObraDetailPage() {
     fetchData();
   }, [user, obraDocumentId]);
 
+  // Función para alternar el estado de colapso
+  const toggleAvanceCollapse = () => {
+    setIsAvanceCollapsed(!isAvanceCollapsed);
+  };
+
   if (loading || loadingData) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -230,7 +236,7 @@ export default function ObraDetailPage() {
     );
   }
 
-    const imageUrl = obra.imagen_principal;
+  const imageUrl = obra.imagen_principal;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -310,51 +316,69 @@ export default function ObraDetailPage() {
           </div>
         </div>
 
-        {/* Avance de la obra */}
+        {/* Avance de la obra con botón de colapsar */}
         {rubrosAvance.length > 0 && (
           <div className="bg-white shadow-md rounded-lg p-6 mb-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">Avance de la Obra</h2>
-
-            <div className="mb-6">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-lg font-semibold text-gray-700">Avance Total</span>
-                <span className="text-lg font-bold">{avanceTotal}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${
-                    avanceTotal < 30 ? 'bg-red-500' :
-                    avanceTotal < 70 ? 'bg-yellow-500' :
-                    'bg-green-500'
-                  }`}
-                  style={{ width: `${avanceTotal}%` }}
-                />
-              </div>
+            <div className="flex justify-between items-center mb-6 cursor-pointer" onClick={toggleAvanceCollapse}>
+              <h2 className="text-2xl font-bold text-gray-800">Avance de la Obra</h2>
+              <button 
+                className="p-2 text-gray-600 hover:text-gray-800 focus:outline-none transition-transform duration-300"
+                aria-label={isAvanceCollapsed ? "Expandir sección" : "Colapsar sección"}
+              >
+                <svg 
+                  className={`w-6 h-6 transform ${isAvanceCollapsed ? '' : 'rotate-180'}`} 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {rubrosAvance.map((rubro, index) => (
-                <div key={index}>
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-sm text-gray-700">{rubro.nombre}</span>
-                    <span className="text-sm font-semibold">{rubro.porcentaje}%</span>
-                  </div>
-                  <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${
-                        rubro.porcentaje < 30 ? 'bg-red-400' :
-                        rubro.porcentaje < 70 ? 'bg-yellow-400' :
-                        'bg-green-400'
-                      }`}
-                      style={{ width: `${rubro.porcentaje}%` }}
-                    />
-                  </div>
+            {/* Contenido colapsable */}
+            <div className={`transition-all duration-300 overflow-hidden ${isAvanceCollapsed ? 'max-h-0 opacity-0' : 'max-h-full opacity-100'}`}>
+              <div className="mb-6">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-lg font-semibold text-gray-700">Avance Total</span>
+                  <span className="text-lg font-bold">{avanceTotal}%</span>
                 </div>
-              ))}
-            </div>
+                <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${
+                      avanceTotal < 30 ? 'bg-red-500' :
+                      avanceTotal < 70 ? 'bg-yellow-500' :
+                      'bg-green-500'
+                    }`}
+                    style={{ width: `${avanceTotal}%` }}
+                  />
+                </div>
+              </div>
 
-            <div className="mt-8 text-sm text-gray-400 text-center italic">
-              * El avance se actualiza semanalmente.
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {rubrosAvance.map((rubro, index) => (
+                  <div key={index}>
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-sm text-gray-700">{rubro.nombre}</span>
+                      <span className="text-sm font-semibold">{rubro.porcentaje}%</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${
+                          rubro.porcentaje < 30 ? 'bg-red-400' :
+                          rubro.porcentaje < 70 ? 'bg-yellow-400' :
+                          'bg-green-400'
+                        }`}
+                        style={{ width: `${rubro.porcentaje}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-8 text-sm text-gray-400 text-center italic">
+                * El avance se actualiza semanalmente.
+              </div>
             </div>
           </div>
         )}
